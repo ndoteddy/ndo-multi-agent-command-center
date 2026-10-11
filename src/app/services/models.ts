@@ -15,6 +15,8 @@ export interface DiscoveredModel {
 interface ModelCache {
   updatedAt: string | null;
   providers: Partial<Record<ProviderId, { models: DiscoveredModel[]; error?: string }>>;
+  /** Providers whose CLI version changed since the last detection. */
+  stale?: ProviderId[];
 }
 
 // Model lists found by asking the installed CLIs (backend /api/models).
@@ -26,8 +28,15 @@ export class ModelService {
   readonly error = signal('');
   readonly updatedAt = computed(() => this.cache().updatedAt);
 
+  isStale(provider: ProviderId): boolean {
+    return this.cache().stale?.includes(provider) ?? false;
+  }
+
   constructor() {
-    void this.load(false);
+    // First run only: detect once, then the saved list is reused until the user asks again.
+    void this.load(false).then(() => {
+      if (this.cache().updatedAt === null) void this.load(true);
+    });
   }
 
   modelsFor(provider: ProviderId): DiscoveredModel[] {

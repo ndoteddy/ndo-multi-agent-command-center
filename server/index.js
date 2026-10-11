@@ -448,11 +448,21 @@ const server = http.createServer((req, res) => {
       }
     };
     if (url.searchParams.get('refresh') !== '1') {
-      sendJson(res, 200, readCache() ?? { updatedAt: null, providers: {} });
+      // Serve the cache; just flag providers whose CLI version changed since
+      // the last detection, so the UI can suggest re-detecting (no cost here).
+      const cache = readCache() ?? { updatedAt: null, providers: {} };
+      detectAll()
+        .then((status) => {
+          const stale = Object.keys(cache.providers).filter(
+            (id) => status[id]?.installed && status[id].version !== cache.cliVersions?.[id],
+          );
+          sendJson(res, 200, { ...cache, stale });
+        })
+        .catch(() => sendJson(res, 200, { ...cache, stale: [] }));
       return;
     }
-    discoverModels()
-      .then((providers) => {
+    Promise.all([discoverModels(), detectAll()])
+      .then(([providers, status]) => {
         const previous = readCache()?.providers ?? {};
         // A failed discovery must not wipe a previously good list.
         for (const [id, entry] of Object.entries(providers)) {
@@ -460,10 +470,13 @@ const server = http.createServer((req, res) => {
             providers[id] = { ...previous[id], error: entry.error };
           }
         }
-        const cache = { updatedAt: new Date().toISOString(), providers };
+        const cliVersions = Object.fromEntries(
+          Object.entries(status).map(([id, s]) => [id, s.version ?? null]),
+        );
+        const cache = { updatedAt: new Date().toISOString(), cliVersions, providers };
         fs.mkdirSync(path.dirname(cachePath), { recursive: true });
         fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2));
-        sendJson(res, 200, cache);
+        sendJson(res, 200, { ...cache, stale: [] });
       })
       .catch((err) => sendJson(res, 500, { error: err.message }));
     return;

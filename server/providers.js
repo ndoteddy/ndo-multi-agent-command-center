@@ -346,10 +346,19 @@ function scanBinaryForModelIds(file) {
   });
 }
 
+// Newer models an older CLI's catalog may not list yet. They are offered anyway:
+// a CLI that is too old answers with a clear "run claude update" error.
+const KNOWN_RECENT = [
+  'claude-sonnet-5-5',
+  'claude-opus-5-5',
+  'claude-haiku-5-5',
+  'claude-fable-5-1',
+];
+
 async function discoverClaudeVersions(skip) {
   const file = findClaudeBinaryFile();
-  if (!file) return [];
-  const ids = await scanBinaryForModelIds(file);
+  const inCatalog = new Set(file ? await scanBinaryForModelIds(file) : []);
+  const ids = [...new Set([...inCatalog, ...KNOWN_RECENT])];
   const parsed = ids
     .map((id) => {
       const m = id.match(/^claude-(opus|sonnet|haiku|fable)-(\d+)(?:-(\d+))?$/);
@@ -363,7 +372,8 @@ async function discoverClaudeVersions(skip) {
       );
     })
     // A bare "claude-opus-4" is ambiguous; only fable is versioned by major alone.
-    .filter((p) => p && (p.minor !== null || p.family === 'fable') && !skip.has(p.id));
+    .filter((p) => p && (p.minor !== null || p.family === 'fable') && !skip.has(p.id))
+    .map((p) => ({ ...p, listed: inCatalog.has(p.id) }));
   const order = { opus: 0, sonnet: 1, haiku: 2, fable: 3 };
   parsed.sort(
     (a, b) =>
@@ -375,7 +385,9 @@ async function discoverClaudeVersions(skip) {
     resolved: p.id,
     available: true,
     group: 'versions',
-    note: 'From the CLI model catalog; not verified against your plan.',
+    note: p.listed
+      ? 'From the CLI model catalog; not verified against your plan.'
+      : 'Newer than your CLI knows about. If it errors, run `claude update`.',
   }));
 }
 

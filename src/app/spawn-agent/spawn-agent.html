@@ -45,8 +45,11 @@
     >
       {{ modelService.loading() ? 'Detecting…' : '↻ Detect available models' }}
     </button>
-    <span class="muted">{{ detected() ? 'from your CLI' : 'built-in presets' }}</span>
+    <span class="muted">{{ detected() ? 'saved from your CLI' : 'built-in presets' }}</span>
   </div>
+  @if (modelService.isStale(agentService.provider())) {
+    <p class="muted">Your CLI was updated since models were detected. Detect again for new ones.</p>
+  }
   @if (modelService.error()) {
     <p class="model-error">{{ modelService.error() }}</p>
   }
