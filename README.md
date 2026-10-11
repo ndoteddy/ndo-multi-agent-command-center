@@ -109,7 +109,7 @@ total across all agents in the corner:
 The generated knowledge vault opened in Obsidian. The graph view shows how
 agents connect, and each note holds the full conversation:
 
-![The vault folder opened as an Obsidian graph, with a note open](screenshot/multiagent4.png)
+![The vault folder opened as an Obsidian graph, with a note open](screenshot/vault-graph.png)
 
 ## Features
 
