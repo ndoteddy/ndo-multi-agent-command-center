@@ -139,17 +139,36 @@ const claude = {
 
   parse(stdout) {
     const data = JSON.parse(stdout);
-    const u = data.usage ?? {};
-    const input =
-      (u.input_tokens ?? 0) +
-      (u.cache_creation_input_tokens ?? 0) +
-      (u.cache_read_input_tokens ?? 0);
+    // `usage` only covers the main model. Web research also runs a small helper
+    // model to digest fetched pages, and that shows up only in `modelUsage`,
+    // so sum every model there and fall back to `usage` if it is absent.
+    const perModel = Object.values(data.modelUsage ?? {});
+    let input;
+    let output;
+    if (perModel.length > 0) {
+      input = perModel.reduce(
+        (n, m) =>
+          n +
+          (m.inputTokens ?? 0) +
+          (m.cacheReadInputTokens ?? 0) +
+          (m.cacheCreationInputTokens ?? 0),
+        0,
+      );
+      output = perModel.reduce((n, m) => n + (m.outputTokens ?? 0), 0);
+    } else {
+      const u = data.usage ?? {};
+      input =
+        (u.input_tokens ?? 0) +
+        (u.cache_creation_input_tokens ?? 0) +
+        (u.cache_read_input_tokens ?? 0);
+      output = u.output_tokens ?? 0;
+    }
     return {
       text: String(data.result ?? ''),
       isError: Boolean(data.is_error),
       usage: {
         inputTokens: input,
-        outputTokens: u.output_tokens ?? 0,
+        outputTokens: output,
         costUsd: typeof data.total_cost_usd === 'number' ? data.total_cost_usd : undefined,
         estimated: false,
       },
