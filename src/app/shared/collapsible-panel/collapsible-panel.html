@@ -1,0 +1,16 @@
+<header class="panel-header">
+  @if (!collapsed()) {
+    <h2>{{ title() }}</h2>
+  }
+  <button
+    type="button"
+    class="collapse-btn"
+    (click)="toggle()"
+    [title]="collapsed() ? 'Expand ' + title() : 'Collapse ' + title()"
+  >
+    {{ collapsed() ? '»' : '«' }}
+  </button>
+</header>
+<div class="panel-body" [class.no-pad]="!padded()" [class.hidden]="collapsed()">
+  <ng-content />
+</div>

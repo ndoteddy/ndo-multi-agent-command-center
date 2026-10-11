@@ -1,0 +1,121 @@
+<app-dialog title="MCP servers" [width]="560" (closed)="closed.emit()">
+  @if (!editing()) {
+    <p class="intro">
+      Saved MCP servers are available to every agent. Attach the ones an agent needs when you spawn
+      it. They are stored in <code>config/mcp-servers.json</code> on this machine.
+    </p>
+
+    @if (mcp.servers().length === 0) {
+      <p class="empty">No MCP servers saved yet.</p>
+    }
+
+    <ul class="server-list">
+      @for (server of mcp.servers(); track server.name) {
+        <li>
+          <div class="info">
+            <strong>{{ server.name }}</strong>
+            <span class="badge">{{ server.type }}</span>
+            <span class="summary">{{ summary(server) }}</span>
+          </div>
+          <div class="row-actions">
+            <button type="button" (click)="startEdit(server)">Edit</button>
+            <button type="button" class="danger" (click)="remove(server.name)">Delete</button>
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (error()) {
+      <p class="error">{{ error() }}</p>
+    }
+
+    <button type="button" class="primary" (click)="startAdd()">+ Add MCP server</button>
+  } @else {
+    <form (ngSubmit)="submit()">
+      <label>
+        Name
+        <input
+          type="text"
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
+          name="name"
+          placeholder="e.g. github"
+          required
+        />
+      </label>
+
+      <label>
+        Transport
+        <select [ngModel]="type()" (ngModelChange)="type.set($event)" name="type">
+          <option value="stdio">Local command (stdio)</option>
+          <option value="http">Remote URL (HTTP)</option>
+        </select>
+      </label>
+
+      @if (type() === 'stdio') {
+        <label>
+          Command
+          <input
+            type="text"
+            [ngModel]="command()"
+            (ngModelChange)="command.set($event)"
+            name="command"
+            placeholder="npx"
+            required
+          />
+        </label>
+        <label>
+          Arguments <span class="optional">(one per line)</span>
+          <textarea
+            rows="3"
+            [ngModel]="args()"
+            (ngModelChange)="args.set($event)"
+            name="args"
+            placeholder="-y&#10;@modelcontextprotocol/server-filesystem&#10;C:\projects"
+          ></textarea>
+        </label>
+        <label>
+          Environment <span class="optional">(KEY=value, one per line)</span>
+          <textarea
+            rows="2"
+            [ngModel]="env()"
+            (ngModelChange)="env.set($event)"
+            name="env"
+            placeholder="GITHUB_TOKEN=ghp_..."
+          ></textarea>
+        </label>
+      } @else {
+        <label>
+          URL
+          <input
+            type="url"
+            [ngModel]="url()"
+            (ngModelChange)="url.set($event)"
+            name="url"
+            placeholder="https://example.com/mcp"
+            required
+          />
+        </label>
+        <label>
+          Headers <span class="optional">(Name: value, one per line)</span>
+          <textarea
+            rows="2"
+            [ngModel]="headers()"
+            (ngModelChange)="headers.set($event)"
+            name="headers"
+            placeholder="Authorization: Bearer ..."
+          ></textarea>
+        </label>
+      }
+
+      @if (error()) {
+        <p class="error">{{ error() }}</p>
+      }
+
+      <div class="form-actions">
+        <button type="button" (click)="editing.set(false)">Cancel</button>
+        <button type="submit" class="primary" [disabled]="saving()">Save</button>
+      </div>
+    </form>
+  }
+</app-dialog>

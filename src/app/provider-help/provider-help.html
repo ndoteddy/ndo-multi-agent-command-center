@@ -1,0 +1,82 @@
+<app-dialog title="Set up an agent CLI" (closed)="closed.emit()">
+  <p class="intro">
+    Agents run on a command-line AI tool installed on this machine. Pick one in the header, then
+    follow its steps once. The app never handles your login; it just drives the CLI.
+  </p>
+
+  <div class="tabs" role="tablist">
+    @for (id of providerIds; track id) {
+      <button
+        type="button"
+        role="tab"
+        [class.active]="tab() === id"
+        [attr.aria-selected]="tab() === id"
+        (click)="tab.set(id)"
+      >
+        {{ providers[id].label }}
+      </button>
+    }
+  </div>
+
+  <div
+    class="status"
+    [class.ok]="status()?.installed"
+    [class.missing]="status() && !status()!.installed"
+  >
+    @if (!status()) {
+      <span>Checking whether {{ info().label }} is installed…</span>
+    } @else if (status()!.installed) {
+      <span
+        >✓ Detected on this machine{{
+          status()!.version ? ' (' + status()!.version + ')' : ''
+        }}</span
+      >
+    } @else {
+      <span>✕ Not found on this machine yet. Follow the steps below.</span>
+    }
+    <button type="button" class="link" (click)="recheck()">Re-check</button>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <strong>Install</strong>
+      <div class="cmd">
+        <code>{{ info().install }}</code>
+        <button type="button" (click)="copy(info().install)">
+          {{ copied() === info().install ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+      <span class="hint">Needs Node.js 20+. Open a new terminal afterwards.</span>
+    </li>
+    <li>
+      <strong>Sign in</strong>
+      <div class="cmd">
+        <code>{{ info().login }}</code>
+        <button type="button" (click)="copy(info().login)">
+          {{ copied() === info().login ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+    </li>
+    <li>
+      <strong>Verify</strong>
+      <div class="cmd">
+        <code>{{ info().verify }}</code>
+        <button type="button" (click)="copy(info().verify)">
+          {{ copied() === info().verify ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+      <span class="hint">Then press Re-check above, or just spawn an agent.</span>
+    </li>
+  </ol>
+
+  <h3>Good to know</h3>
+  <ul class="notes">
+    @for (note of info().notes; track note) {
+      <li>{{ note }}</li>
+    }
+  </ul>
+
+  <a class="docs" [href]="info().docsUrl" target="_blank" rel="noopener noreferrer">
+    Official documentation ↗
+  </a>
+</app-dialog>

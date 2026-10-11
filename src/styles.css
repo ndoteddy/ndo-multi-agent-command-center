@@ -1,0 +1,64 @@
+:root {
+  --bg: #070b14;
+  --panel: #0f1526;
+  --panel-raised: #161d33;
+  --border: #212a44;
+  --text: #e2e8f0;
+  --text-dim: #8b96ad;
+  --accent-cyan: #38bdf8;
+  --status-idle: #64748b;
+  --status-working: #f59e0b;
+  --status-done: #22c55e;
+  --status-danger: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Dynamically created by Three.js CSS2DRenderer — not reachable by component-scoped styles */
+.agent-label {
+  background: rgba(10, 14, 26, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 11px;
+  text-align: center;
+  font-family: 'Segoe UI', sans-serif;
+  padding: 3px 10px;
+  white-space: nowrap;
+  transform: translateY(-4px);
+}
+
+.agent-label.label-idle {
+  border-color: var(--status-idle);
+  color: var(--status-idle);
+}
+
+.agent-label.label-working {
+  border-color: var(--status-working);
+  color: var(--status-working);
+}
+
+.agent-label.label-done {
+  border-color: var(--status-done);
+  color: var(--status-done);
+}
+
+.agent-label .agent-label-tokens {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-top: 1px;
+}

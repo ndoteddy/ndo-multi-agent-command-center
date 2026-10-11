@@ -1,0 +1,129 @@
+@if (agentService.agents().length === 0) {
+  <p class="empty">No agents yet. Spawn one on the left to get started.</p>
+}
+
+<ul class="agent-cards">
+  @for (agent of agentService.agents(); track agent.id) {
+    <li class="agent-card" [class]="'status-' + agent.status">
+      <div class="card-head">
+        <button
+          type="button"
+          class="card-collapse-btn"
+          (click)="toggleCollapse(agent.id)"
+          [title]="isCollapsed(agent.id) ? 'Expand' : 'Collapse'"
+        >
+          {{ isCollapsed(agent.id) ? '▸' : '▾' }}
+        </button>
+        <span class="status-dot" [class]="'dot-' + agent.status"></span>
+        <strong>{{ agent.name }}</strong>
+        <span class="task-pill">{{ taskTypeLabels[agent.taskType] }}</span>
+      </div>
+
+      <div class="meta-row">
+        <span class="meta-pill" title="CLI used by this agent">{{
+          providers[agent.provider].label
+        }}</span>
+        <span class="meta-pill" title="Model">{{ agent.model || 'default model' }}</span>
+        @for (name of agent.mcp; track name) {
+          <span class="meta-pill mcp" title="MCP server attached">⚙ {{ name }}</span>
+        }
+        <span
+          class="meta-pill tokens"
+          [title]="
+            'Input ' +
+            agent.usage.inputTokens +
+            ' · Output ' +
+            agent.usage.outputTokens +
+            (agent.usage.costUsd !== undefined ? ' · $' + agent.usage.costUsd.toFixed(4) : '') +
+            (agent.usage.estimated ? ' (estimated)' : '')
+          "
+        >
+          {{ agent.usage.estimated ? '~' : '' }}{{ formatTokens(tokenCount(agent)) }} tokens
+        </span>
+      </div>
+
+      <div class="progress-track">
+        <div
+          class="progress-fill"
+          [class]="'fill-' + agent.status"
+          [style.width.%]="agent.progress"
+        ></div>
+      </div>
+
+      @if (!isCollapsed(agent.id)) {
+        <p class="brief">{{ agent.brief }}</p>
+
+        @if (agent.relatedIds.length > 0) {
+          <p class="related-chips">↔ Related: {{ relatedNames(agent.relatedIds) }}</p>
+        }
+
+        @if (agent.transcript.length > 0) {
+          <div class="transcript">
+            @for (turn of agent.transcript; track $index) {
+              @if (turn.role === 'user') {
+                <div class="turn turn-user">
+                  <div class="bubble">{{ turn.text }}</div>
+                </div>
+              } @else {
+                <div class="turn turn-agent">
+                  <span class="avatar" aria-hidden="true">{{
+                    agent.name.charAt(0).toUpperCase()
+                  }}</span>
+                  <div class="agent-content">
+                    @if (turn.text) {
+                      @if (agent.error && $last) {
+                        <p class="turn-error">{{ turn.text }}</p>
+                      } @else {
+                        <app-message-body [text]="turn.text" />
+                      }
+                    } @else if (agent.status === 'working' && $last) {
+                      <span class="typing" aria-label="Agent is working"
+                        ><i></i><i></i><i></i
+                      ></span>
+                    }
+                    @if (turn.usage) {
+                      <span class="turn-usage">
+                        ↑ {{ formatTokens(turn.usage.inputTokens) }} · ↓
+                        {{ formatTokens(turn.usage.outputTokens) }} tokens{{
+                          turn.usage.estimated ? ' (est.)' : ''
+                        }}{{
+                          turn.usage.costUsd !== undefined
+                            ? ' · $' + turn.usage.costUsd.toFixed(3)
+                            : ''
+                        }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        } @else if (agent.status === 'working') {
+          <p class="latest-log">Waiting on {{ providers[agent.provider].label }}…</p>
+        }
+
+        @if (agent.transcript.length > 0 && agent.status !== 'working') {
+          <div class="reply-row">
+            <input
+              #replyBox
+              type="text"
+              placeholder="Reply to this agent…"
+              (keydown.enter)="reply(agent.id, replyBox)"
+            />
+            <button type="button" (click)="reply(agent.id, replyBox)">Reply</button>
+          </div>
+        }
+      }
+
+      <div class="card-actions">
+        <button type="button" (click)="start(agent.id)" [disabled]="agent.status === 'working'">
+          {{ agent.status === 'done' ? 'Run again' : 'Start' }}
+        </button>
+        <button type="button" (click)="reset(agent.id)" [disabled]="agent.status === 'idle'">
+          Reset
+        </button>
+        <button type="button" class="danger" (click)="remove(agent.id)">Remove</button>
+      </div>
+    </li>
+  }
+</ul>
