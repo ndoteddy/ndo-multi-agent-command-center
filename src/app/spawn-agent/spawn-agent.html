@@ -17,10 +17,19 @@
     Model <span class="optional">(for this agent only)</span>
     <select [(ngModel)]="modelChoice" name="modelChoice">
       <option value="">Default model</option>
-      @for (option of modelOptions(); track option.value) {
+      @for (option of latestOptions(); track option.value) {
         <option [value]="option.value" [disabled]="option.disabled" [title]="option.title">
           {{ option.label }}{{ option.disabled ? ' (unavailable)' : '' }}
         </option>
+      }
+      @if (pinnedOptions().length > 0) {
+        <optgroup label="Specific versions">
+          @for (option of pinnedOptions(); track option.value) {
+            <option [value]="option.value" [disabled]="option.disabled" [title]="option.title">
+              {{ option.label }}{{ option.disabled ? ' (unavailable)' : '' }}
+            </option>
+          }
+        </optgroup>
       }
       <option [value]="customModelValue">Custom…</option>
     </select>

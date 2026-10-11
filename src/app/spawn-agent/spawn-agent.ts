@@ -36,15 +36,23 @@ export class SpawnAgent {
     const provider = this.agentService.provider();
     const found = this.modelService.modelsFor(provider);
     if (found.length === 0) {
-      return PROVIDERS[provider].models.map((m) => ({ ...m, disabled: false, title: '' }));
+      return PROVIDERS[provider].models.map((m) => ({
+        ...m,
+        disabled: false,
+        title: '',
+        pinned: false,
+      }));
     }
     return found.map((m) => ({
       value: m.value,
       label: m.resolved && m.resolved !== m.value ? `${m.label} · ${m.resolved}` : m.label,
       disabled: !m.available,
       title: m.note ?? '',
+      pinned: m.group === 'versions',
     }));
   });
+  protected readonly latestOptions = computed(() => this.modelOptions().filter((o) => !o.pinned));
+  protected readonly pinnedOptions = computed(() => this.modelOptions().filter((o) => o.pinned));
   protected readonly detected = computed(
     () => this.modelService.modelsFor(this.agentService.provider()).length > 0,
   );

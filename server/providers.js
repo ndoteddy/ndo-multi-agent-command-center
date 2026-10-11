@@ -308,6 +308,77 @@ function capture(provider, args, timeout) {
 
 const titleCase = (word) => word.charAt(0).toUpperCase() + word.slice(1);
 
+// `claude --help` only names a few aliases, but the CLI's own /model picker
+// offers many specific versions. Those live in the binary's model catalog, so
+// we read the model ids out of it (streamed: the binary is ~200 MB).
+function findClaudeBinaryFile() {
+  const { cmd } = claude.resolve();
+  const candidates = path.isAbsolute(cmd)
+    ? [cmd]
+    : (process.env.PATH ?? '')
+        .split(path.delimiter)
+        .flatMap((dir) => [path.join(dir, 'claude'), path.join(dir, 'claude.exe')]);
+  for (const file of candidates) {
+    try {
+      const real = fs.realpathSync(file);
+      if (fs.statSync(real).size > 5_000_000) return real; // skip tiny shell shims
+    } catch {
+      // not here
+    }
+  }
+  return null;
+}
+
+const MODEL_ID = /claude-(?:opus|sonnet|haiku|fable)-\d+(?:-\d{1,2})?(?![\w-])/g;
+
+function scanBinaryForModelIds(file) {
+  return new Promise((resolve) => {
+    const found = new Set();
+    let tail = '';
+    const stream = fs.createReadStream(file, { encoding: 'latin1', highWaterMark: 4 << 20 });
+    stream.on('data', (chunk) => {
+      const text = tail + chunk;
+      for (const m of text.matchAll(MODEL_ID)) found.add(m[0]);
+      tail = text.slice(-80); // ids can straddle chunk boundaries
+    });
+    stream.on('end', () => resolve([...found]));
+    stream.on('error', () => resolve([]));
+  });
+}
+
+async function discoverClaudeVersions(skip) {
+  const file = findClaudeBinaryFile();
+  if (!file) return [];
+  const ids = await scanBinaryForModelIds(file);
+  const parsed = ids
+    .map((id) => {
+      const m = id.match(/^claude-(opus|sonnet|haiku|fable)-(\d+)(?:-(\d+))?$/);
+      return (
+        m && {
+          id,
+          family: m[1],
+          major: Number(m[2]),
+          minor: m[3] === undefined ? null : Number(m[3]),
+        }
+      );
+    })
+    // A bare "claude-opus-4" is ambiguous; only fable is versioned by major alone.
+    .filter((p) => p && (p.minor !== null || p.family === 'fable') && !skip.has(p.id));
+  const order = { opus: 0, sonnet: 1, haiku: 2, fable: 3 };
+  parsed.sort(
+    (a, b) =>
+      order[a.family] - order[b.family] || b.major - a.major || (b.minor ?? 0) - (a.minor ?? 0),
+  );
+  return parsed.map((p) => ({
+    value: p.id,
+    label: `${titleCase(p.family)} ${p.major}${p.minor === null ? '' : '.' + p.minor}`,
+    resolved: p.id,
+    available: true,
+    group: 'versions',
+    note: 'From the CLI model catalog; not verified against your plan.',
+  }));
+}
+
 async function discoverClaude() {
   const help = await capture(claude, ['--help'], 15_000);
   const section = help.stdout.match(/alias for the latest model \(e\.g\.([\s\S]*?)\)/);
@@ -319,7 +390,7 @@ async function discoverClaude() {
   if (unique.length === 0) throw new Error('Could not read model aliases from `claude --help`.');
 
   // One tiny prompt per alias, in parallel. Costs a few cents in total.
-  return Promise.all(
+  const aliasModels = await Promise.all(
     unique.map(async (alias) => {
       const run = await capture(
         claude,
@@ -359,6 +430,14 @@ async function discoverClaude() {
       }
     }),
   );
+
+  // Specific versions, minus any the aliases already resolved to.
+  const resolved = aliasModels.map((m) => m.resolved).filter(Boolean);
+  const versions = (await discoverClaudeVersions(new Set())).filter(
+    // `claude-haiku-4-5` is the same model as an alias resolving to `claude-haiku-4-5-20251001`.
+    (v) => !resolved.some((id) => id === v.value || id.startsWith(`${v.value}-`)),
+  );
+  return [...aliasModels, ...versions];
 }
 
 async function discoverCopilot() {

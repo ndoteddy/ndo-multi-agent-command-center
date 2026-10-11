@@ -7,6 +7,8 @@ export interface DiscoveredModel {
   /** Concrete model id the alias currently points to, e.g. claude-opus-4-8. */
   resolved?: string;
   available: boolean;
+  /** 'versions' marks specific pinned versions, as opposed to latest-aliases. */
+  group?: string;
   note?: string;
 }
 
