@@ -329,7 +329,8 @@ function findClaudeBinaryFile() {
   return null;
 }
 
-const MODEL_ID = /claude-(?:opus|sonnet|haiku|fable)-\d+(?:-\d{1,2})?(?![\w-])/g;
+// Minor versions are a single digit; a longer match is a prefix of something else.
+const MODEL_ID = /claude-(?:opus|sonnet|haiku|fable)-\d+(?:-\d)?(?![\w-])/g;
 
 function scanBinaryForModelIds(file) {
   return new Promise((resolve) => {
@@ -401,47 +402,51 @@ async function discoverClaude() {
   const unique = [...new Set([...aliases, 'haiku'])];
   if (unique.length === 0) throw new Error('Could not read model aliases from `claude --help`.');
 
-  // One tiny prompt per alias, in parallel. Costs a few cents in total.
-  const aliasModels = await Promise.all(
-    unique.map(async (alias) => {
-      const run = await capture(
-        claude,
-        [
-          '-p',
-          'hi',
-          '--model',
-          alias,
-          '--output-format',
-          'json',
-          '--max-budget-usd',
-          '0.3',
-          '--disallowedTools',
-          'Bash,Edit,Write,Read,Glob,Grep,WebSearch,WebFetch',
-        ],
-        60_000,
-      );
-      try {
-        const data = JSON.parse(run.stdout);
-        const resolved = Object.keys(data.modelUsage ?? {})[0];
-        if (data.is_error || !resolved) {
-          return {
-            value: alias,
-            label: titleCase(alias),
-            available: false,
-            note: String(data.result ?? 'unavailable').slice(0, 140),
-          };
-        }
-        return { value: alias, label: titleCase(alias), resolved, available: true };
-      } catch {
+  // One tiny prompt per alias. Costs a few cents in total. A failed probe is
+  // retried once on its own: parallel CLI starts occasionally trip over each other.
+  const probe = async (alias) => {
+    const run = await capture(
+      claude,
+      [
+        '-p',
+        'hi',
+        '--model',
+        alias,
+        '--output-format',
+        'json',
+        '--max-budget-usd',
+        '0.3',
+        '--disallowedTools',
+        'Bash,Edit,Write,Read,Glob,Grep,WebSearch,WebFetch',
+      ],
+      60_000,
+    );
+    try {
+      const data = JSON.parse(run.stdout);
+      const resolved = Object.keys(data.modelUsage ?? {})[0];
+      if (data.is_error || !resolved) {
         return {
           value: alias,
           label: titleCase(alias),
           available: false,
-          note: 'Could not resolve this alias.',
+          note: String(data.result ?? 'unavailable').slice(0, 140),
         };
       }
-    }),
-  );
+      return { value: alias, label: titleCase(alias), resolved, available: true };
+    } catch {
+      return {
+        value: alias,
+        label: titleCase(alias),
+        available: false,
+        note: 'Could not resolve this alias.',
+      };
+    }
+  };
+  const aliasModels = await Promise.all(unique.map(probe));
+  for (let i = 0; i < aliasModels.length; i++) {
+    const failed = !aliasModels[i].available && !/credits/i.test(aliasModels[i].note ?? '');
+    if (failed) aliasModels[i] = await probe(aliasModels[i].value);
+  }
 
   // Specific versions, minus any the aliases already resolved to.
   const resolved = aliasModels.map((m) => m.resolved).filter(Boolean);
