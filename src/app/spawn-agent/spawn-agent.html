@@ -1,0 +1,106 @@
+<form (ngSubmit)="spawn()">
+  <label>
+    Name <span class="optional">(optional)</span>
+    <input type="text" [(ngModel)]="name" name="name" placeholder="e.g. Scout" />
+  </label>
+
+  <label>
+    Task type
+    <select [(ngModel)]="taskType" name="taskType">
+      @for (type of taskTypes; track type) {
+        <option [value]="type">{{ taskTypeLabels[type] }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Model <span class="optional">(for this agent only)</span>
+    <select [(ngModel)]="modelChoice" name="modelChoice">
+      <option value="">Default model</option>
+      @for (option of modelOptions(); track option.value) {
+        <option [value]="option.value" [disabled]="option.disabled" [title]="option.title">
+          {{ option.label }}{{ option.disabled ? ' (unavailable)' : '' }}
+        </option>
+      }
+      <option [value]="customModelValue">Custom…</option>
+    </select>
+  </label>
+
+  <div class="model-tools">
+    <button
+      type="button"
+      class="manage-btn"
+      [disabled]="modelService.loading()"
+      title="Asks the installed CLI which models it offers. Claude: a few tiny requests, about 10 cents."
+      (click)="modelService.load(true)"
+    >
+      {{ modelService.loading() ? 'Detecting…' : '↻ Detect available models' }}
+    </button>
+    <span class="muted">{{ detected() ? 'from your CLI' : 'built-in presets' }}</span>
+  </div>
+  @if (modelService.error()) {
+    <p class="model-error">{{ modelService.error() }}</p>
+  }
+
+  @if (modelChoice() === customModelValue) {
+    <input
+      type="text"
+      [(ngModel)]="customModel"
+      name="customModel"
+      placeholder="Exact model name, e.g. gemini-2.5-pro"
+      aria-label="Custom model name"
+    />
+  }
+
+  <label>
+    Description
+    <textarea
+      [(ngModel)]="brief"
+      name="brief"
+      rows="4"
+      placeholder="e.g. Draft a 500-word article about ocean currents"
+      required
+    ></textarea>
+  </label>
+
+  <fieldset class="picker">
+    <legend>MCP servers <span class="optional">(optional)</span></legend>
+    @for (server of mcpService.servers(); track server.name) {
+      <label class="check-option">
+        <input
+          type="checkbox"
+          [checked]="mcpNames().includes(server.name)"
+          (change)="toggleMcp(server.name, $any($event.target).checked)"
+        />
+        {{ server.name }}
+      </label>
+    } @empty {
+      <span class="muted">None saved yet.</span>
+    }
+    <button type="button" class="manage-btn" (click)="showMcpManager.set(true)">
+      Manage MCP servers…
+    </button>
+  </fieldset>
+
+  @if (agentService.agents().length > 0) {
+    <fieldset class="picker">
+      <legend>Related to <span class="optional">(optional)</span></legend>
+      @for (candidate of agentService.agents(); track candidate.id) {
+        <label class="check-option">
+          <input
+            type="checkbox"
+            [checked]="relatedIds().includes(candidate.id)"
+            (change)="toggleRelated(candidate.id, $any($event.target).checked)"
+          />
+          {{ candidate.name }}
+        </label>
+      }
+    </fieldset>
+  }
+
+  <button type="submit" class="spawn-btn">+ Spawn Agent</button>
+</form>
+
+@if (showMcpManager()) {
+  <app-mcp-manager (closed)="showMcpManager.set(false)" />
+}

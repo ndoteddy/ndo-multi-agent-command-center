@@ -1,0 +1,69 @@
+:host {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  transition: flex-basis 0.2s ease;
+}
+
+.panel-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+}
+
+:host.collapsed .panel-header {
+  justify-content: center;
+}
+
+.panel-header h2 {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.collapse-btn {
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.3rem 0.55rem;
+}
+
+.collapse-btn:hover {
+  color: var(--text);
+}
+
+.panel-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.panel-body.no-pad {
+  overflow: hidden;
+  padding: 0;
+}
+
+.panel-body.hidden {
+  display: none;
+}
