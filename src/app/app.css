@@ -107,12 +107,55 @@
 .columns {
   display: flex;
   flex: 1;
-  gap: 1.25rem;
   min-height: 0;
 }
 
+/* Widths come from --spawn-w / --roster-w, set by the drag handles. */
 .col-spawn {
-  flex: 0 0 320px;
+  flex: 0 0 var(--spawn-w, 320px);
+}
+
+.splitter,
+.splitter-gap {
+  flex: 0 0 1.25rem;
+}
+
+.splitter {
+  cursor: col-resize;
+  position: relative;
+  touch-action: none;
+}
+
+.splitter::after {
+  background: var(--border);
+  border-radius: 2px;
+  content: '';
+  inset: 0.5rem auto 0.5rem 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  transition: background 0.15s ease;
+  width: 2px;
+}
+
+.splitter:hover::after,
+.splitter:focus-visible::after,
+.resizing .splitter::after {
+  background: var(--accent-cyan);
+  width: 3px;
+}
+
+.splitter:focus-visible {
+  outline: none;
+}
+
+/* No easing while dragging, so panels follow the pointer exactly. */
+.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.resizing app-collapsible-panel {
+  transition: none;
 }
 
 .col-spawn.collapsed {
@@ -120,7 +163,7 @@
 }
 
 .col-roster {
-  flex: 0 0 440px;
+  flex: 0 0 var(--roster-w, 440px);
 }
 
 .col-roster.collapsed {
@@ -170,6 +213,12 @@
 @media (max-width: 1100px) {
   .columns {
     flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .splitter,
+  .splitter-gap {
+    display: none;
   }
 
   .col-spawn,

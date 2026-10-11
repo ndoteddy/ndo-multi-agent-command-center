@@ -9,4 +9,17 @@
     <li><span class="swatch done"></span>Done</li>
   </ul>
 </div>
-<div #host class="scene-host"></div>
+<div class="scene-host">
+  <div #host class="scene-canvas"></div>
+  @if (empty()) {
+    <div class="welcome" role="status">
+      <h3>Welcome to the Command Center</h3>
+      <p>Spawn your first agent and it will appear here, live.</p>
+      <ul class="welcome-states">
+        <li><span class="swatch idle"></span>Idle</li>
+        <li><span class="swatch working"></span>Working</li>
+        <li><span class="swatch done"></span>Done</li>
+      </ul>
+    </div>
+  }
+</div>

@@ -46,16 +46,52 @@
     </div>
   </header>
 
-  <main class="columns">
-    <app-collapsible-panel class="col-spawn" title="Spawn Agent">
+  <main
+    class="columns"
+    [class.resizing]="dragging()"
+    [style.--spawn-w]="spawnWidth() + 'px'"
+    [style.--roster-w]="rosterWidth() + 'px'"
+  >
+    <app-collapsible-panel #spawnPanel class="col-spawn" title="Spawn Agent">
       <app-spawn-agent />
     </app-collapsible-panel>
+
+    @if (!spawnPanel.collapsed()) {
+      <div
+        class="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the Spawn Agent panel"
+        tabindex="0"
+        title="Drag to resize, double-click to reset"
+        (pointerdown)="startResize('spawn', $event)"
+        (keydown)="resizeByKey('spawn', $event)"
+      ></div>
+    } @else {
+      <div class="splitter-gap"></div>
+    }
 
     <app-collapsible-panel class="col-monitor" title="Visualization" [padded]="false">
       <app-monitor />
     </app-collapsible-panel>
 
+    @if (!rosterPanel.collapsed()) {
+      <div
+        class="splitter"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the Active Agents panel"
+        tabindex="0"
+        title="Drag to resize, double-click to reset"
+        (pointerdown)="startResize('roster', $event)"
+        (keydown)="resizeByKey('roster', $event)"
+      ></div>
+    } @else {
+      <div class="splitter-gap"></div>
+    }
+
     <app-collapsible-panel
+      #rosterPanel
       class="col-roster"
       [title]="'Active Agents (' + agentService.agents().length + ')'"
     >

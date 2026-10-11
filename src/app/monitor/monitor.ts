@@ -51,6 +51,17 @@ export class Monitor implements OnDestroy {
   private readonly clock = new THREE.Clock();
   private readonly visuals = new Map<string, AgentVisual>();
   private readonly relationLines = new Map<string, THREE.Line>();
+  // Decorative scene shown only while there are no agents, replaced by the real ones.
+  private welcome?: THREE.Group;
+  private readonly orbiters: {
+    mesh: THREE.Mesh;
+    radius: number;
+    speed: number;
+    tilt: number;
+    phase: number;
+  }[] = [];
+
+  protected readonly empty = computed(() => this.agentService.agents().length === 0);
   private initialized = false;
 
   protected readonly totalTokens = computed(() =>
@@ -87,6 +98,7 @@ export class Monitor implements OnDestroy {
     this.visuals.clear();
     this.relationLines.forEach((line) => this.disposeLine(line));
     this.relationLines.clear();
+    if (this.welcome) this.disposeGroup(this.welcome);
     this.renderer?.dispose();
     this.labelRenderer?.domElement.remove();
   }
@@ -197,6 +209,91 @@ export class Monitor implements OnDestroy {
     }
 
     this.syncRelationLines(agents);
+    this.syncWelcome(agents.length === 0);
+  }
+
+  private syncWelcome(show: boolean): void {
+    if (!this.scene) return;
+    if (show && !this.welcome) {
+      this.welcome = this.createWelcome();
+      this.scene.add(this.welcome);
+    } else if (!show && this.welcome) {
+      this.scene.remove(this.welcome);
+      this.disposeGroup(this.welcome);
+      this.welcome = undefined;
+      this.orbiters.length = 0;
+    }
+  }
+
+  private createWelcome(): THREE.Group {
+    const group = new THREE.Group();
+    const accent = 0x38bdf8;
+
+    const core = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.55, 1),
+      new THREE.MeshStandardMaterial({
+        color: accent,
+        emissive: accent,
+        emissiveIntensity: 0.45,
+        metalness: 0.2,
+        roughness: 0.35,
+      }),
+    );
+    core.name = 'core';
+    core.position.y = 1.2;
+
+    const shell = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.15, 2),
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.22,
+      }),
+    );
+    shell.name = 'shell';
+    shell.position.y = 1.2;
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.7, 1.78, 64),
+      new THREE.MeshBasicMaterial({
+        color: accent,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.35,
+      }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.02;
+
+    group.add(core, shell, ring);
+
+    // Small spheres in the same colors as the agent states, orbiting the core.
+    const states = [0x64748b, 0xf59e0b, 0x22c55e];
+    states.forEach((color, i) => {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.17, 24, 24),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 }),
+      );
+      group.add(mesh);
+      this.orbiters.push({
+        mesh,
+        radius: 1.9 + i * 0.45,
+        speed: 0.7 - i * 0.14,
+        tilt: 0.35 + i * 0.3,
+        phase: (i * Math.PI * 2) / 3,
+      });
+    });
+    return group;
+  }
+
+  private disposeGroup(group: THREE.Group): void {
+    group.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        (object.material as THREE.Material).dispose();
+      }
+    });
   }
 
   private syncRelationLines(agents: Agent[]): void {
@@ -301,9 +398,35 @@ export class Monitor implements OnDestroy {
     (line.material as THREE.Material).dispose();
   }
 
+  private animateWelcome(elapsed: number): void {
+    if (!this.welcome) return;
+    const core = this.welcome.getObjectByName('core');
+    const shell = this.welcome.getObjectByName('shell');
+    if (core) {
+      core.rotation.y = elapsed * 0.6;
+      core.position.y = 1.2 + Math.sin(elapsed * 1.2) * 0.12;
+      core.scale.setScalar(1 + Math.sin(elapsed * 2) * 0.04);
+    }
+    if (shell) {
+      shell.rotation.y = -elapsed * 0.25;
+      shell.rotation.x = elapsed * 0.1;
+      shell.position.y = core?.position.y ?? 1.2;
+    }
+    for (const o of this.orbiters) {
+      const angle = elapsed * o.speed + o.phase;
+      o.mesh.position.set(
+        Math.cos(angle) * o.radius,
+        1.2 + Math.sin(angle) * o.radius * Math.sin(o.tilt),
+        Math.sin(angle) * o.radius * Math.cos(o.tilt),
+      );
+    }
+  }
+
   private animate = (): void => {
     this.frameHandle = requestAnimationFrame(this.animate);
     const elapsed = this.clock.getElapsedTime();
+
+    this.animateWelcome(elapsed);
 
     this.visuals.forEach((visual) => {
       const targetX = (visual.group.userData['targetX'] as number) ?? visual.group.position.x;
