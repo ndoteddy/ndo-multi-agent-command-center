@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@angular/build": "^22.2.2",
-    "@angular/cli": "^22.2.2",
+    "@angular/cli": "^22.2.3",
     "@angular/compiler-cli": "^22.2.0",
     "@types/three": "^0.186.0",
     "jsdom": "^30.0.0",
